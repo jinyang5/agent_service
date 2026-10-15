@@ -1,0 +1,24 @@
+# ch02 · 只起 MySQL(不含 ch04+ 的 Milvus/etcd/minio)
+# 对齐教程根目录 docker-compose.yml 的 MySQL 段:镜像 mysql:8(8.4 LTS)、root/root、库 mewhelp、端口 3306
+# 刻意【不】挂 ./sql 到 initdb.d:根目录那份会按文件名序把 ch02~ch10 全跑一遍,
+#   本章只要 ch02 的四张表,故 DDL/seed 由 docker exec 手动灌(见 dev-notes/ch02.md)
+services:
+  mysql:
+    image: mysql:8
+    container_name: mewhelp-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mewhelp   # 首启自动建库;DDL/seed 只写表,不建库
+    ports:
+      - "3307:3306"   # 宿主机 3307 → 容器 3306;本机 MySQL97 占着 3306,故容器对外用 3307
+    volumes:
+      - mewhelp-mysql-data:/var/lib/mysql   # 数据卷:容器删了数据还在,宿主机由 Docker Desktop 管理
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mewhelp-mysql-data:
+    name: mewhelp-mysql-data
