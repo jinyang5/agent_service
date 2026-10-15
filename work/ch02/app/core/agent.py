@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from app.config import settings
 from app.core.llm import get_chat_model
 from app.core.memory import trim_history
-from app.core.prompts import AGENT_SYSTEM
+from app.core.prompts import AGENT_SYSTEM, CONVERGE_NUDGE
 from app.db import repository
 from app.db.models import Message
 from app.tools.infra import ToolRun, execute_tool_call
@@ -86,14 +86,16 @@ async def run_agent_turn(user_id, message, conversation_id, model=None) -> Agent
         user_id, message, conversation_id, model)
     if not ai.tool_calls:
         return AgentResult(conversation_id, _text(ai), [], [])
-    final: AIMessage = await model.ainvoke(         # 收敛:不 bind_tools
-        [*messages, ai, *(r.tool_message for r in runs)])
+    final: AIMessage = await model.bind_tools(get_all_tools()).ainvoke(
+        [*messages, ai, *(r.tool_message for r in runs), HumanMessage(CONVERGE_NUDGE)])
+    # 收敛:绑定工具让模型能走原生 tool-call 通道(不绑时模型会把原生标记当纯文本吐 DSML 乱码),
+    # 单轮保证靠「收敛永不执行工具」——_prepare_turn 之外没有工具执行代码路径,而非靠不 bind。
     await repository.append_message(conversation_id, "assistant", content=_text(final))
     return AgentResult(conversation_id, _text(final), ai.tool_calls, runs)
 
 
 async def stream_agent_turn(user_id, message, conversation_id, model=None) -> AsyncIterator[dict]:
-    """流式出口:产出事件 dict 供 /api/chat 转 SSE。收敛用 astream 逐 token、不 bind。"""
+    """流式出口:产出事件 dict 供 /api/chat 转 SSE。收敛用 astream 逐 token,并 bind 工具 + 指令。"""
     model = model or get_chat_model(streaming=True)
     conversation_id, messages, ai, runs = await _prepare_turn(
         user_id, message, conversation_id, model)
@@ -108,7 +110,9 @@ async def stream_agent_turn(user_id, message, conversation_id, model=None) -> As
         yield {"type": "tool", "name": tc.get("name") or ""}
 
     chunks: list[str] = []
-    async for chunk in model.astream([*messages, ai, *(r.tool_message for r in runs)]):
+    # 收敛:同 run_agent_turn,绑定工具 + 追问指令;单轮保证靠收敛不执行工具,而非不 bind。
+    async for chunk in model.bind_tools(get_all_tools()).astream(
+        [*messages, ai, *(r.tool_message for r in runs), HumanMessage(CONVERGE_NUDGE)]):
         text = chunk.content if isinstance(chunk.content, str) else _text(chunk)
         if not text:
             continue

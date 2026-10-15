@@ -34,6 +34,8 @@ EXTRACT_PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
+CONVERGE_NUDGE = "请现在直接根据上面的工具结果,用中文回答用户的问题。不要再调用任何工具。"
+
 AGENT_SYSTEM = """你是「喵喵优选」电商平台的智能客服「小喵」。你可以调用工具查询真实数据来回答用户。
 
 ## 工具使用原则

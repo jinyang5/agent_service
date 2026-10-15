@@ -1,8 +1,9 @@
 # tests/test_agent_stream.py
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.core import agent
+from app.core.prompts import CONVERGE_NUDGE
 from app.db import repository as repo
 from tests.test_agent_orchestration import FakeModel
 
@@ -16,7 +17,10 @@ async def test_stream_with_tool_emits_tool_then_deltas(db_session_factory, db_cl
     assert types[0] == "tool" and events[0]["name"] == "query_logistics"
     assert types[-1] == "done" and events[-1]["conversation_id"] == 1
     assert "".join(e["text"] for e in events if e["type"] == "delta") == "您的订单正在运输中。"
-    assert model.bind_calls == 1
+    assert model.bind_calls == 2                        # turn1 + 收敛各 bind 一次
+    last_msg = model.astream_messages[-1][-1]
+    assert isinstance(last_msg, HumanMessage)
+    assert last_msg.content == CONVERGE_NUDGE
     msgs = await repo.list_messages(1)
     assert [m.role for m in msgs] == ["user", "assistant", "tool", "assistant"]
 

@@ -1,15 +1,15 @@
 # tests/test_agent_orchestration.py
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.core import agent
-from app.core.prompts import AGENT_SYSTEM
+from app.core.prompts import AGENT_SYSTEM, CONVERGE_NUDGE
 from app.db import repository as repo
 
 
 class FakeModel:
     """turn1 返回 scripted[0](可带 tool_calls);非流式收敛返回 scripted[1];
     流式收敛按 stream_tokens 逐个 yield AIMessageChunk。
-    bind_calls 记录 bind_tools 次数(收敛不 bind → 应恒为 1)。"""
+    bind_calls 记录 bind_tools 次数(turn1 + 有工具时的收敛各一次 → 无工具为 1,有工具为 2)。"""
 
     def __init__(self, scripted, stream_tokens=None):
         self._scripted = list(scripted)
@@ -38,6 +38,7 @@ async def test_no_tool_calls_returns_direct_answer(db_session_factory, db_clean)
     model = FakeModel([AIMessage(content="你好,喵~ 有什么可以帮您?")])
     res = await agent.run_agent_turn("u1", "你好", None, model=model)
     assert res.answer.startswith("你好") and res.tool_calls == []
+    assert model.bind_calls == 1                        # 无工具分支不走收敛,只 turn1 bind
     msgs = await repo.list_messages(res.conversation_id)
     assert [m.role for m in msgs] == ["user", "assistant"]
 
@@ -60,10 +61,22 @@ async def test_tool_call_flow_executes_and_converges(db_session_factory, db_clea
     assert res.answer == "您的订单 1001 正在运输中。"
     assert res.tool_calls[0]["name"] == "query_logistics"
     assert res.tool_runs[0].ok is True
-    assert model.bind_calls == 1                       # 收敛不 bind
+    assert model.bind_calls == 2                       # turn1 + 收敛各 bind 一次
     msgs = await repo.list_messages(res.conversation_id)
     assert [m.role for m in msgs] == ["user", "assistant", "tool", "assistant"]
     assert msgs[2].tool_call_id == "c1"
+
+
+async def test_convergence_appends_converge_nudge(db_session_factory, db_clean):
+    # 回归:工具漏召回时模型想再调工具,若收敛不 bind + 无指令,会把原生 tool-call 标记
+    # 当纯文本吐成 DSML 乱码。收敛必须 bind 工具并追加 user 指令,引导直接作答。
+    first = AIMessage(content="", tool_calls=[
+        {"name": "query_logistics", "args": {"order_id": "1001"}, "id": "c1"}])
+    model = FakeModel([first, AIMessage(content="抱歉,没查到,请提供更多信息。")])
+    await agent.run_agent_turn("u1", "订单 1001 到哪了", None, model=model)
+    last_msg = model.invoke_messages[-1][-1]
+    assert isinstance(last_msg, HumanMessage)
+    assert last_msg.content == CONVERGE_NUDGE
 
 
 async def test_continue_conversation_replays_only_final_answers(db_session_factory, db_clean):
