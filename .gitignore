@@ -7,6 +7,10 @@ __pycache__/
 .env.*
 !.env.example
 .pytest_cache/
+# 测试与运行时留下的临时目录:pytest 的 basetemp(pytest-of-<user>/)与 TorchInductor 编译缓存
+# (torchinductor_<user>/)会落在当时的工作目录。临时壳里跑一次就可能出现,git add -A 不许扫进来。
+pytest-of-*/
+torchinductor_*/
 .superpowers/
 data/*.db*
 data/*.sqlite*

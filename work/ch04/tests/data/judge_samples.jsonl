@@ -1,0 +1,6 @@
+{"query":"MH-W40 滤芯多久换一次","evidence":"[1] MH-W40 建议每 3 周更换一次滤芯","answer":"W40 大概三周换一次滤芯。","points":["每3周"],"expect_faithful":true,"note":"换述"}
+{"query":"退款多久到账","evidence":"[1] 退款原路退回,到账时效以平台售后规则为准。","answer":"暂时没查到具体到账时间,建议联系人工客服。","points":["原路退回"],"expect_faithful":true,"note":"合理拒答"}
+{"query":"不满99元运费多少","evidence":"[1] 满 99 元包邮,未满收取 10 元运费。","answer":"满 99 元包邮,未满收取 20 元运费。","points":["满99元包邮","10元运费"],"expect_faithful":false,"note":"凭空数字"}
+{"query":"MH-W40 滤芯多久换一次","evidence":"[1] MH-W40 每 3 周;[2] MH-W20 每 2 周。","answer":"W40 每 2 周换一次。","points":["每3周"],"expect_faithful":false,"note":"张冠李戴"}
+{"query":"退货要注意什么","evidence":"[1] 无理由退货需商品完好、不影响二次销售。","answer":"退货需商品完好,建议保留包装并尽快联系客服。","points":["商品完好"],"expect_faithful":true,"note":"无害提醒"}
+{"query":"退货和价保的7天从哪天算","evidence":"[1] 无理由退货 7 天自签收之日起算;[2] 价保 7 天自下单时间起算。","answer":"无理由退货的 7 天从签收算,价保的 7 天从下单算。","points":["自签收之日起","自下单时间起算"],"expect_faithful":true,"note":"跨证据合并"}

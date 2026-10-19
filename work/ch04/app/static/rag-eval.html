@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>喵喵优选 · RAG 评估</title>
+  <script src="/static/admin.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #eceff3; color: #212529; font-size: 13px; line-height: 1.6;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 18px 70px; }
+    .topbar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .topbar h1 { font-size: 20px; }
+    .topbar .sub { color: #6c757d; font-size: 12.5px; }
+    .spacer { flex: 1; }
+
+    .btn {
+      font: inherit; font-size: 12.5px; color: #343a40; background: #fff; cursor: pointer;
+      border: 1px solid #ced4da; border-radius: 8px; padding: 6px 13px;
+    }
+    .btn:hover { background: #f1f3f5; }
+    .btn.go { background: #4c6ef5; border-color: #4c6ef5; color: #fff; }
+    .btn.go:hover { background: #3b5bdb; }
+    .btn[disabled] { opacity: .5; cursor: default; }
+
+    .card {
+      background: #fff; border-radius: 10px; padding: 14px 16px; margin-top: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card h2 { font-size: 15px; margin-bottom: 10px; }
+    .card .note { color: #868e96; font-size: 12px; margin-bottom: 8px; }
+
+    .pill {
+      display: inline-flex; align-items: center; font-size: 11.5px; line-height: 1.6;
+      border-radius: 999px; padding: 1px 10px; background: #f1f3f5; color: #868e96;
+      white-space: nowrap;
+    }
+    .pill.ok { background: #d3f9d8; color: #2b8a3e; }
+    .pill.attention { background: #fff3bf; color: #b8860b; }
+    .pill.error { background: #ffe3e3; color: #c92a2a; }
+
+    .kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .kpi { border: 1px solid #dee2e6; background: #f8f9fa; border-radius: 10px; padding: 10px 12px; }
+    .kpi .v { font-size: 24px; font-weight: 700; line-height: 1.3; }
+    .kpi .l { color: #868e96; font-size: 12px; }
+    .kpi .s { color: #adb5bd; font-size: 11px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { border-bottom: 1px solid #f1f3f5; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { color: #868e96; font-weight: 600; background: #f8f9fa; }
+    td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tr.best td { background: #f4f9ff; }
+
+    .bar { display: inline-block; height: 8px; border-radius: 4px; background: #4c6ef5; vertical-align: middle; margin-right: 6px; }
+    .bar.dim { background: #adb5bd; }
+
+    .grid2 { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+
+    .cases .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .cases .tabs button.on { background: #edf2ff; border-color: #4c6ef5; color: #3b5bdb; font-weight: 700; }
+    .case { border: 1px solid #dee2e6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+    .case .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .case .q { font-weight: 600; margin: 6px 0 4px; }
+    .case .reason { color: #868e96; font-size: 12px; }
+    .case .answer { background: #f8f9fa; border-radius: 8px; padding: 7px 9px; margin-top: 6px; white-space: pre-wrap; font-size: 12px; }
+    .case .acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .case input[type=text] { font: inherit; font-size: 12px; padding: 5px 8px; border: 1px solid #ced4da; border-radius: 7px; min-width: 260px; }
+    .case details { margin-top: 6px; }
+    .case summary { cursor: pointer; color: #4c6ef5; font-size: 12px; }
+
+    pre.log {
+      background: #212529; color: #e9ecef; border-radius: 8px; padding: 10px 12px;
+      font-size: 11.5px; line-height: 1.55; max-height: 320px; overflow: auto;
+      white-space: pre-wrap; word-break: break-all; margin-top: 8px;
+    }
+    pre.log:empty::before { content: "日志窗口:发起一次作业,这里回显尾部"; color: #868e96; }
+
+    #toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 9; }
+    .toast-item { background: #212529; color: #f8f9fa; border-radius: 8px; padding: 9px 14px;
+      font-size: 12.5px; max-width: 420px; box-shadow: 0 4px 14px rgba(0,0,0,.2); white-space: pre-wrap; }
+    .toast-item.err { background: #c92a2a; }
+    .muted { color: #868e96; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>RAG 评估</h1>
+      <span class="sub">四策略 × 四桶;页面只读产物,不重算</span>
+      <span class="spacer"></span>
+      <button class="btn" id="refreshBtn">刷新</button>
+      <button class="btn go" id="runBtn">重跑 RAG 评估</button>
+      <button class="btn" id="stopBtn" style="display:none">停止</button>
+    </div>
+
+    <div id="missing" class="card" style="display:none">
+      <h2>还没有评估报告</h2>
+      <div class="note" id="missingHint"></div>
+      <div>终端里等价命令:<code id="missingMake"></code></div>
+    </div>
+
+    <div id="report" style="display:none">
+      <div class="card">
+        <h2>报告头</h2>
+        <div class="note" id="metaLine"></div>
+        <div class="kpis" id="kpis"></div>
+      </div>
+
+      <div class="card">
+        <h2>检索质量(MRR / Recall@5)</h2>
+        <div class="note" id="overallNote"></div>
+        <table id="retrievalTable"></table>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>证据覆盖度</h2>
+          <table id="evidenceTable"></table>
+        </div>
+        <div class="card">
+          <h2>生成段</h2>
+          <div class="note" id="genNote"></div>
+          <table id="genTable"></table>
+          <table id="faithTable"></table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>库外拒答(D 桶)</h2>
+        <table id="refusalTable"></table>
+      </div>
+
+      <div class="card">
+        <h2>错误</h2>
+        <ul id="errors" class="muted"></ul>
+      </div>
+
+      <div class="card cases">
+        <h2>编造个案台账</h2>
+        <div class="note">跨轮累计;一题一行。「已解决」= 确认编造并已修,「无需解决」= 裁判误报;复发会退回「未解决」并保留首次处置时间。</div>
+        <div class="tabs" id="caseTabs"></div>
+        <div id="caseList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>重跑</h2>
+      <div class="note" id="jobLine">作业:<code>make eval-rag</code>(分钟级,会调用 LLM)</div>
+      <pre class="log" id="jobLog"></pre>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const CASE_STATUS = ['未解决', '已解决', '无需解决'];
+let currentTab = '全部';
+let counts = {};
+let pollTimer = null;
+
+function toast(msg, err) {
+  const d = document.createElement('div');
+  d.className = 'toast-item' + (err ? ' err' : '');
+  d.textContent = msg;
+  $('toast').appendChild(d);
+  setTimeout(() => d.remove(), 4200);
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+  if (!res.ok) throw new Error((data && (data.detail || data.message)) || ('HTTP ' + res.status));
+  return data;
+}
+
+function pct(v) { return (v === null || v === undefined) ? '—' : (v * 100).toFixed(1) + '%'; }
+function f3(v) { return (v === null || v === undefined) ? '—' : Number(v).toFixed(3); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function bar(v, max) {
+  const w = Math.max(0, Math.min(100, (Number(v || 0) / (max || 1)) * 100));
+  return '<span class="bar" style="width:' + w.toFixed(1) + 'px;max-width:70px"></span>';
+}
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+/* ---------------- 报告 ---------------- */
+
+function renderKpis(d) {
+  const best = d.best || {};
+  const gen = d.generation || {};
+  const bestSt = best.strategy;
+  const cMrr = ((d.retrieval || {})[bestSt] || {}).C_colloquial || {};
+  const answer = ((gen.answer_coverage || {})[bestSt] || {}).overall;
+  const refusal = ((gen.refusal || {}).D_offtopic || {});
+  const box = $('kpis');
+  box.innerHTML = '';
+  const items = [
+    ['最佳 MRR', f3(best.mrr), bestSt || '—'],
+    ['口语桶 MRR', f3(cMrr.mrr), bestSt || '—'],
+    ['答案覆盖度', pct(answer), '整体'],
+    ['库外拒答率', pct(refusal.rate), 'n=' + (refusal.n == null ? '—' : refusal.n)],
+    ['编造个案', String(counts['未解决'] == null ? '—' : counts['未解决']), '未解决'],
+  ];
+  for (const [label, value, sub] of items) {
+    const k = el('div', 'kpi');
+    k.appendChild(el('div', 'v', value));
+    k.appendChild(el('div', 'l', label));
+    k.appendChild(el('div', 's', sub));
+    box.appendChild(k);
+  }
+}
+
+function renderMeta(d) {
+  const m = d.meta || {};
+  const parts = [
+    '时间 ' + (m.generated_at || '—'),
+    '评估集 ' + (m.sampled == null ? '—' : m.sampled) + ' / ' + (m.eval_set_size == null ? '—' : m.eval_set_size) + ' 题',
+    'KB ' + (m.kb_chunks == null ? '—' : m.kb_chunks) + ' 块',
+    '嵌入 ' + (m.embed_model || '—'),
+    '重排 ' + (m.rerank_model || '—'),
+    '裁判 ' + (m.judge_model || '—'),
+  ];
+  $('metaLine').textContent = parts.join(' · ');
+  $('overallNote').textContent = d.overall_note || '';
+}
+
+function renderRetrieval(d) {
+  // 只渲染检索段真正有的桶:API 的 buckets 含 D_offtopic(只评拒答),不该出现在检索表里
+  const st0 = (d.strategies || [])[0];
+  const buckets = Object.keys(((d.retrieval || {})[st0]) || {});
+  const table = $('retrievalTable');
+  table.innerHTML = '';
+  const thead = el('tr');
+  thead.appendChild(el('th', null, '策略'));
+  for (const b of buckets) thead.appendChild(el('th', null, b));
+  thead.appendChild(el('th', null, '总均值'));
+  const head = el('thead'); head.appendChild(thead); table.appendChild(head);
+  const body = el('tbody');
+  const overall = d.retrieval_overall || {};
+  for (const st of (d.strategies || [])) {
+    const tr = el('tr');
+    if ((d.best || {}).strategy === st) tr.className = 'best';
+    tr.appendChild(el('td', null, st));
+    for (const b of buckets) {
+      const cell = (d.retrieval || {})[st] && d.retrieval[st][b] || {};
+      const td = el('td', 'num');
+      td.innerHTML = bar(cell.mrr, 1) + f3(cell.mrr) + ' <span class="muted">R@5=' + f3(cell.recall_at_5) + '</span>';
+      tr.appendChild(td);
+    }
+    const td = el('td', 'num');
+    td.textContent = f3(overall[st]);
+    tr.appendChild(td);
+    body.appendChild(tr);
+  }
+  table.appendChild(body);
+}
+
+function renderEvidence(d) {
+  const table = $('evidenceTable');
+  table.innerHTML = '';
+  const head = el('thead'); const hr = el('tr');
+  hr.appendChild(el('th', null, '策略'));
+  for (const k of ['A_policy', 'B_model', 'C_colloquial', 'overall']) hr.appendChild(el('th', null, k));
+  head.appendChild(hr); table.appendChild(head);
+  const body = el('tbody');
+  for (const st of (d.strategies || [])) {
+    const v = (d.evidence_coverage || {})[st] || {};
+    const tr = el('tr');
+    tr.appendChild(el('td', null, st));
+    for (const k of ['A_policy', 'B_model', 'C_colloquial', 'overall']) {
+      const td = el('td', 'num', pct(v[k]));
+      tr.appendChild(td);
+    }
+    body.appendChild(tr);
+  }
+  table.appendChild(body);
+}
+
+function renderGeneration(d) {
+  const gen = d.generation || {};
+  $('genNote').textContent = gen.completed ? '本轮生成段已完成' : '本次生成段未完成(上游失败或只跑了检索段)';
+  const table = $('genTable');
+  table.innerHTML = '';
+  const head = el('thead'); const hr = el('tr');
+  hr.appendChild(el('th', null, '策略'));
+  for (const k of ['A_policy', 'B_model', 'C_colloquial', 'overall']) hr.appendChild(el('th', null, '答案 ' + k));
+  head.appendChild(hr); table.appendChild(head);
+  const body = el('tbody');
+  for (const st of (d.strategies || [])) {
+    const v = (gen.answer_coverage || {})[st] || {};
+    const tr = el('tr');
+    tr.appendChild(el('td', null, st));
+    for (const k of ['A_policy', 'B_model', 'C_colloquial', 'overall']) tr.appendChild(el('td', 'num', pct(v[k])));
+    body.appendChild(tr);
+  }
+  table.appendChild(body);
+
+  const faith = (gen.faithfulness || {}).hybrid_rerank || {};
+  const ft = $('faithTable');
+  ft.innerHTML = '';
+  const fh = el('thead'); const fhr = el('tr');
+  fhr.appendChild(el('th', null, '忠实度'));
+  for (const k of ['A_policy', 'B_model', 'C_colloquial', 'overall']) fhr.appendChild(el('th', null, k));
+  fh.appendChild(fhr); ft.appendChild(fh);
+  const fb = el('tbody'); const fr = el('tr');
+  fr.appendChild(el('td', null, 'hybrid_rerank'));
+  for (const k of ['A_policy', 'B_model', 'C_colloquial', 'overall']) {
+    const cell = faith[k] || {};
+    fr.appendChild(el('td', 'num', pct(cell.rate) + (cell.n == null ? '' : ' (n=' + cell.n + ')')));
+  }
+  fb.appendChild(fr); ft.appendChild(fb);
+}
+
+function renderRefusal(d) {
+  const r = ((d.generation || {}).refusal || {}).D_offtopic;
+  const t = $('refusalTable');
+  t.innerHTML = '';
+  if (!r) { t.innerHTML = '<tr><td class="muted">本次没有 D 桶结果</td></tr>'; return; }
+  const head = el('thead'); const hr = el('tr');
+  // 产物的 details 里没有单独的 top 字段(在 reason 文本里),这里展示 reason
+  for (const h of ['题号', '拒答', '来源', '原因']) hr.appendChild(el('th', null, h));
+  head.appendChild(hr); t.appendChild(head);
+  const body = el('tbody');
+  for (const x of (r.details || [])) {
+    const tr = el('tr');
+    tr.appendChild(el('td', null, x.id || '—'));
+    tr.appendChild(el('td', null, x.refused ? '✅' : '❌'));
+    tr.appendChild(el('td', null, x.source || '—'));
+    tr.appendChild(el('td', 'muted', x.reason || '—'));
+    body.appendChild(tr);
+  }
+  t.appendChild(body);
+}
+
+function renderErrors(d) {
+  const ul = $('errors');
+  ul.innerHTML = '';
+  const errs = (d.generation || {}).errors || [];
+  if (!errs.length) { ul.appendChild(el('li', 'muted', '无')); return; }
+  for (const e of errs) ul.appendChild(el('li', null, String(e)));
+}
+
+function renderReport(d) {
+  $('report').style.display = '';
+  $('missing').style.display = 'none';
+  renderMeta(d);
+  renderKpis(d);
+  renderRetrieval(d);
+  renderEvidence(d);
+  renderGeneration(d);
+  renderRefusal(d);
+  renderErrors(d);
+}
+
+/* ---------------- 个案台账 ---------------- */
+
+function renderCaseTabs() {
+  const box = $('caseTabs');
+  box.innerHTML = '';
+  for (const s of ['全部', ...CASE_STATUS]) {
+    const b = el('button', 'btn' + (currentTab === s ? ' on' : ''), s + (counts[s] == null ? '' : ' (' + counts[s] + ')'));
+    b.addEventListener('click', () => { currentTab = s; loadCases(); renderCaseTabs(); });
+    box.appendChild(b);
+  }
+}
+
+async function loadCases() {
+  try {
+    const q = currentTab === '全部' ? '' : ('?status=' + encodeURIComponent(currentTab));
+    const d = await api('/api/rag-eval/faith-cases' + q);
+    counts = d.counts || {};
+    renderCaseTabs();
+    renderKpis(lastOverview || {});
+    const list = $('caseList');
+    list.innerHTML = '';
+    if (!(d.items || []).length) { list.appendChild(el('div', 'muted', '没有个案。')); return; }
+    for (const c of d.items) list.appendChild(caseNode(c));
+  } catch (e) {
+    toast('台账加载失败:' + e.message, true);
+  }
+}
+
+function caseNode(c) {
+  const box = el('div', 'case');
+  const head = el('div', 'head');
+  head.appendChild(el('span', 'pill', c.eval_id));
+  head.appendChild(el('span', 'pill', c.bucket || '—'));
+  head.appendChild(el('span', 'pill ' + (c.status === '未解决' ? 'error' : c.status === '已解决' ? 'ok' : 'attention'), c.status));
+  if (c.reopened) head.appendChild(el('span', 'pill attention', '复发'));
+  head.appendChild(el('span', 'muted', 'seen=' + (c.seen_count || 1)));
+  if (c.resolved_at) head.appendChild(el('span', 'muted', 'resolved_at=' + c.resolved_at));
+  box.appendChild(head);
+
+  box.appendChild(el('div', 'q', c.query || ''));
+  box.appendChild(el('div', 'reason', c.reason || ''));
+  box.appendChild(el('div', 'answer', c.answer || ''));
+
+  if (c.citations && c.citations.length) {
+    const det = el('details');
+    det.appendChild(el('summary', null, '证据快照(' + c.citations.length + ' 条)'));
+    const ul = el('ul');
+    for (const it of c.citations) {
+      const li = el('li', null, '[' + it.n + '] ' + (it.section_path || '') + ' — ' + (it.question || ''));
+      ul.appendChild(li);
+    }
+    det.appendChild(ul);
+    box.appendChild(det);
+  } else {
+    box.appendChild(el('div', 'reason', '这一轮没有留证据快照'));
+  }
+
+  const acts = el('div', 'acts');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = '处置说明(标已解决/无需解决时必填)';
+  input.maxLength = 300;
+
+  async function setStatus(status) {
+    if ((status === '已解决' || status === '无需解决') && !input.value.trim()) {
+      toast('请先填一句处置说明', true); input.focus(); return;
+    }
+    try {
+      await api('/api/rag-eval/faith-cases/' + encodeURIComponent(c.eval_id) + '/status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status, resolution: input.value.trim() || null }),
+      });
+      toast(c.eval_id + ' → ' + status);
+      await loadCases();
+    } catch (e) { toast('更新失败:' + e.message, true); }
+  }
+
+  const b1 = el('button', 'btn go', '已解决');
+  const b2 = el('button', 'btn', '无需解决');
+  const b3 = el('button', 'btn', '重开为未解决');
+  b1.addEventListener('click', () => setStatus('已解决'));
+  b2.addEventListener('click', () => setStatus('无需解决'));
+  b3.addEventListener('click', () => setStatus('未解决'));
+  acts.appendChild(input); acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3);
+  if (c.resolution) acts.appendChild(el('span', 'muted', '上次处置:' + c.resolution));
+  box.appendChild(acts);
+  return box;
+}
+
+/* ---------------- 作业 ---------------- */
+
+function jobPill(status) {
+  const map = { idle: ['', '未运行'], starting: ['attention', '启动中'], running: ['attention', '运行中'],
+                ok: ['ok', '已完成'], failed: ['error', '失败'], stopped: ['', '已停止'] };
+  const [cls, text] = map[status] || ['', status];
+  return '<span class="pill ' + cls + '">' + text + '</span>';
+}
+
+async function loadJob() {
+  try {
+    const j = await api('/api/jobs/eval-rag');
+    $('jobLine').innerHTML = '作业:<code>make eval-rag</code>(分钟级,会调用 LLM)· ' + jobPill(j.status)
+      + (j.pid ? ' pid=' + j.pid : '') + (j.returncode == null ? '' : ' rc=' + j.returncode);
+    $('jobLog').textContent = j.log || '';
+    const busy = j.status === 'starting' || j.status === 'running';
+    $('stopBtn').style.display = busy ? '' : 'none';
+    $('runBtn').disabled = busy;
+    if (busy && !pollTimer) pollTimer = setInterval(loadJob, 2000);
+    if (!busy && pollTimer) { clearInterval(pollTimer); pollTimer = null; await load(); }
+  } catch (e) { /* 作业接口异常不影响报告 */ }
+}
+
+async function runEval() {
+  if (!window.confirm('重跑 RAG 评估是重活:四策略 × 四桶 + 生成/裁判,分钟级,会调用 LLM。\n确认发起一次?')) return;
+  try {
+    const j = await api('/api/jobs/eval-rag', { method: 'POST' });
+    toast('已发起:' + j.title);
+    await loadJob();
+  } catch (e) { toast('发起失败:' + e.message, true); }
+}
+
+async function stopEval() {
+  if (!window.confirm('停掉「RAG 评估」?正在跑的步骤会被中断。')) return;
+  try { await api('/api/jobs/eval-rag/stop', { method: 'POST' }); toast('已停止'); await loadJob(); }
+  catch (e) { toast('停止失败:' + e.message, true); }
+}
+
+/* ---------------- 入口 ---------------- */
+
+let lastOverview = null;
+
+async function load() {
+  try {
+    const d = await api('/api/rag-eval/overview');
+    lastOverview = d;
+    if (!d.present) {
+      $('report').style.display = 'none';
+      $('missing').style.display = '';
+      $('missingHint').textContent = d.hint || '还没跑过 RAG 评估。';
+      $('missingMake').textContent = d.make || 'make eval-rag';
+      return;
+    }
+    $('missing').style.display = 'none';
+    renderReport(d);
+    renderCaseTabs();
+    await loadCases();
+  } catch (e) {
+    toast('报告加载失败:' + e.message, true);
+    $('report').style.display = 'none';
+    $('missing').style.display = '';
+    $('missingHint').textContent = '报告读取失败:' + e.message;
+    $('missingMake').textContent = 'make eval-rag';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  window.mountAdminNav('/rag-eval');
+  $('refreshBtn').addEventListener('click', load);
+  $('runBtn').addEventListener('click', runEval);
+  $('stopBtn').addEventListener('click', stopEval);
+  await load();
+  await loadJob();
+});
+</script>
+</body>
+</html>

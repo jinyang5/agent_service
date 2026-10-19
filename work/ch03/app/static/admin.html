@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>喵喵优选 · 后台管理</title>
+  <script src="/static/admin.js"></script>
+  <style>
+    /* 本页自包含:样式全内联;导航样式由 admin.js 自己注入 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #eceff3; color: #212529; font-size: 13px; line-height: 1.6;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 18px 70px; }
+    .topbar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .topbar h1 { font-size: 20px; }
+    .topbar .sub { color: #6c757d; font-size: 12.5px; }
+    .spacer { flex: 1; }
+
+    .btn {
+      font: inherit; font-size: 12.5px; color: #343a40; background: #fff; cursor: pointer;
+      border: 1px solid #ced4da; border-radius: 8px; padding: 6px 13px;
+    }
+    .btn:hover { background: #f1f3f5; }
+    .btn.go { background: #4c6ef5; border-color: #4c6ef5; color: #fff; text-decoration: none; }
+    .btn.go:hover { background: #3b5bdb; }
+
+    .tip {
+      margin-top: 14px; padding: 10px 14px; background: #fff; border-radius: 10px;
+      border-left: 4px solid #4c6ef5; color: #495057; font-size: 12.5px; line-height: 1.8;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .tip b { color: #212529; }
+
+    .pill {
+      display: inline-flex; align-items: center; font-size: 11.5px; line-height: 1.6;
+      border-radius: 999px; padding: 1px 10px; background: #f1f3f5; color: #868e96;
+      white-space: nowrap;
+    }
+    .pill.ok { background: #d3f9d8; color: #2b8a3e; }
+    .pill.attention { background: #fff3bf; color: #b8860b; }
+    .pill.missing { background: #f1f3f5; color: #868e96; }
+    .pill.error { background: #ffe3e3; color: #c92a2a; }
+
+    .mods { margin-top: 14px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+    .mod {
+      background: #fff; border-radius: 10px; padding: 14px 16px 16px; display: flex;
+      flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,.06); border-top: 3px solid #dee2e6;
+    }
+    .mod.ok { border-top-color: #40c057; }
+    .mod.attention { border-top-color: #fcc419; }
+    .mod.error { border-top-color: #fa5252; }
+    .mod .head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .mod h3 { font-size: 15px; }
+    .mod .lede { color: #6c757d; font-size: 12px; line-height: 1.7; margin: 7px 0 0; }
+    .mod .headline {
+      margin: 10px 0 0; font-size: 13px; line-height: 1.7; background: #f8f9fa;
+      border-radius: 8px; padding: 7px 10px;
+    }
+    .mod .kpis { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .mod .kpi {
+      border: 1px solid #dee2e6; background: #f8f9fa; border-radius: 8px;
+      padding: 4px 10px; font-size: 11.5px; color: #868e96; min-width: 82px;
+    }
+    .mod .kpi b { display: block; font-size: 18px; line-height: 1.4; color: #212529; }
+    .mod .note { margin-top: 8px; font-size: 11.5px; color: #868e96; line-height: 1.7; word-break: break-word; }
+    .mod .foot { margin-top: auto; padding-top: 12px; }
+
+    .miss {
+      color: #868e96; font-size: 12.5px; line-height: 1.7; padding: 10px 12px;
+      background: #fff; border-radius: 8px;
+    }
+
+    #toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 9; }
+    .toast-item {
+      background: #212529; color: #f8f9fa; border-radius: 8px; padding: 9px 14px;
+      font-size: 12.5px; max-width: 420px; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+      white-space: pre-wrap;
+    }
+    .toast-item.err { background: #c92a2a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>后台管理</h1>
+      <span class="sub">几块后台都收在这里,不用回终端</span>
+      <span class="spacer"></span>
+      <button class="btn" id="refreshBtn">刷新</button>
+    </div>
+
+    <div class="tip">
+      口径:<b>正常</b>这块是活的且没有待办;<b>要干活</b>有待办或两边数对不上;
+      <b>没数据</b>还没跑过,进去按一下就有;<b>读数失败</b>这块的依赖没起(mysql / Milvus),
+      只影响它自己那张卡。
+    </div>
+
+    <div class="mods" id="mods"><div class="miss">加载中…</div></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function el(tag, cls, text) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text !== undefined && text !== null) n.textContent = text;
+      return n;
+    }
+
+    function missingBox(text) { return el("div", "miss", text); }
+
+    function toast(msg, isErr) {
+      const t = el("div", "toast-item" + (isErr ? " err" : ""), msg);
+      $("toast").appendChild(t);
+      setTimeout(() => { t.remove(); }, isErr ? 7000 : 3500);
+    }
+
+    async function api(url, opt) {
+      const r = await fetch(url, opt);
+      let data = null;
+      try { data = await r.json(); } catch (e) { /* 非 JSON 就走 HTTP 码 */ }
+      if (!r.ok) {
+        const d = data && data.detail;
+        throw new Error(typeof d === "string" ? d : ("HTTP " + r.status));
+      }
+      return data;
+    }
+
+    const LABEL = { ok: "正常", attention: "要干活", missing: "没数据", error: "读数失败" };
+
+    function card(m) {
+      const box = el("div", "mod " + m.status);
+      const head = el("div", "head");
+      head.appendChild(el("h3", null, m.title));
+      head.appendChild(el("span", "spacer"));
+      head.appendChild(el("span", "pill " + m.status, LABEL[m.status] || m.status));
+      box.appendChild(head);
+      box.appendChild(el("p", "lede", m.lede));
+      box.appendChild(el("div", "headline", m.headline));
+      if (m.metrics && m.metrics.length) {
+        const kpis = el("div", "kpis");
+        for (const k of m.metrics) {
+          const kpi = el("div", "kpi");
+          kpi.appendChild(el("b", null, k.value === null || k.value === undefined ? "—" : k.value));
+          kpi.appendChild(document.createTextNode(k.label));
+          kpis.appendChild(kpi);
+        }
+        box.appendChild(kpis);
+      }
+      if (m.note) box.appendChild(el("div", "note", m.note));
+      const foot = el("div", "foot");
+      const a = el("a", "btn go", "进入 " + m.title + " →");
+      a.href = m.page;
+      foot.appendChild(a);
+      box.appendChild(foot);
+      return box;
+    }
+
+    async function load() {
+      const box = $("mods");
+      let d;
+      try {
+        d = await api("/api/admin/overview");
+      } catch (e) {
+        box.textContent = "";
+        box.appendChild(missingBox("取数失败:" + e.message));
+        toast("取数失败:" + e.message, true);
+        return;
+      }
+      box.textContent = "";
+      for (const m of d.modules) box.appendChild(card(m));
+      if (!box.childNodes.length) box.appendChild(missingBox("还没有可看的模块。"));
+    }
+
+    mountAdminNav("/admin");
+    $("refreshBtn").addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>

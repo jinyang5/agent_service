@@ -1,0 +1,6 @@
+{"id":"cite-single","query":"满多少元包邮?","evidence":["满 99 元包邮,偏远地区除外。"],"expect_citation":[1],"expect_any":[],"expect_all":[],"forbid_patterns":[]}
+{"id":"cite-multi","query":"退货和运费政策分别是什么?","evidence":["七天无理由退货,商品需完好。","满 99 元包邮,偏远地区除外。"],"expect_citation":[1,2],"expect_any":[],"expect_all":[],"forbid_patterns":["\\[\\d+\\s*,\\s*\\d+\\]"]}
+{"id":"refund-timing","query":"退款多久能到账?","evidence":["退款审核通过后原路退回,到账时效以平台实际处理为准。"],"expect_citation":[1],"expect_any":["以平台实际处理为准","以平台售后规则为准"],"expect_all":[],"forbid_patterns":["\\d+\\s*个?\\s*工作日","保证.{0,6}到账","24\\s*小时内"]}
+{"id":"delivery-timing","query":"下单后多久能送到?","evidence":["发货后配送时效以平台实际处理为准,具体以物流信息为准。"],"expect_citation":[1],"expect_any":["以平台实际处理为准","以物流信息为准"],"expect_all":[],"forbid_patterns":["\\d+\\s*天(内)?(到|送达)","明天(就)?到","保证.{0,6}送达"]}
+{"id":"compensation","query":"商品坏了能赔多少钱?","evidence":["商品质量问题可申请售后,赔偿方案以平台售后规则为准。"],"expect_citation":[1],"expect_any":["以平台售后规则为准"],"expect_all":[],"forbid_patterns":["\\d+\\s*元","保证.{0,6}(赔|赔付)","赔付\\s*\\d+"]}
+{"id":"refusal","query":"Pro 型号的电池续航多久?","evidence":["满 99 元包邮,偏远地区除外。","七天无理由退货,商品需完好。"],"expect_citation":[],"expect_any":["没有查到"],"expect_all":["人工客服"],"forbid_patterns":[]}

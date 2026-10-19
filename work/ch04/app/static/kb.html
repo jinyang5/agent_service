@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>喵喵优选 · 知识库录入</title>
+  <script src="/static/admin.js"></script>
+  <style>
+    /* 本页自包含:样式全内联,不引别的章的资源;导航样式由 admin.js 自己注入 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #eceff3; color: #212529; font-size: 13px; line-height: 1.6;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 18px 70px; }
+    .topbar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .topbar h1 { font-size: 20px; }
+    .topbar .sub { color: #6c757d; font-size: 12.5px; }
+    .spacer { flex: 1; }
+
+    .btn {
+      font: inherit; font-size: 12.5px; color: #343a40; background: #fff; cursor: pointer;
+      border: 1px solid #ced4da; border-radius: 8px; padding: 6px 13px;
+    }
+    .btn:hover { background: #f1f3f5; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.go { background: #4c6ef5; border-color: #4c6ef5; color: #fff; }
+    .btn.go:hover { background: #3b5bdb; }
+    .btn.sm { padding: 3px 9px; font-size: 12px; border-radius: 6px; }
+
+    .tip {
+      margin-top: 14px; padding: 10px 14px; background: #fff; border-radius: 10px;
+      border-left: 4px solid #4c6ef5; color: #495057; font-size: 12.5px; line-height: 1.8;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .tip b { color: #212529; }
+
+    /* 库存闸条 */
+    .gatebar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; align-items: stretch; }
+    .stat {
+      background: #fff; border-radius: 10px; padding: 9px 15px; min-width: 118px;
+      font-size: 11.5px; color: #868e96; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      border-top: 3px solid #dee2e6;
+    }
+    .stat b { display: block; font-size: 20px; line-height: 1.35; color: #212529; }
+    .stat.pass { border-top-color: #40c057; }
+    .stat.pass b { color: #2b8a3e; }
+    .stat.fail { border-top-color: #fa5252; }
+    .stat.fail b { color: #c92a2a; }
+    .stat.wide { max-width: 420px; }
+
+    .panel {
+      background: #fff; border-radius: 10px; padding: 15px 17px; margin-top: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); scroll-margin-top: 14px;
+    }
+    .panel h2 { font-size: 15px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .panel .lede { color: #6c757d; font-size: 12.5px; line-height: 1.75; margin: 6px 0 10px; }
+    .panel h3.subh { font-size: 13px; margin: 14px 0 6px; color: #495057; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; line-height: 1.6;
+      border-radius: 999px; padding: 1px 10px; background: #f1f3f5; color: #868e96;
+      white-space: nowrap;
+    }
+    .pill.pass { background: #d3f9d8; color: #2b8a3e; }
+    .pill.fail { background: #ffe3e3; color: #c92a2a; }
+    .pill.info { background: #e7f5ff; color: #1971c2; }
+    .pill.attention { background: #fff3bf; color: #b8860b; }
+    .pill.missing { background: #f1f3f5; color: #868e96; }
+
+    .form { display: grid; gap: 10px; }
+    .form .line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .form label { font-size: 12.5px; font-weight: 600; }
+    select, input[type="text"], input[type="number"], textarea {
+      font: inherit; font-size: 13px; color: #212529; background: #fff;
+      border: 1px solid #ced4da; border-radius: 8px; padding: 6px 9px;
+    }
+    textarea { width: 100%; min-height: 180px; line-height: 1.75; resize: vertical; }
+    input[type="text"] { flex: 1; min-width: 220px; }
+    .hint { color: #6c757d; font-size: 11.5px; }
+    .hint.err { color: #c92a2a; }
+
+    .feats { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+
+    .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .tbl th, .tbl td { border-bottom: 1px solid #e9ecef; padding: 6px 9px; text-align: left; vertical-align: top; }
+    .tbl th { background: #f8f9fa; font-size: 11.5px; color: #495057; white-space: nowrap; }
+    .tbl tr.bad td { background: #fff5f5; }
+    .tbl td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tbl td.mark { white-space: nowrap; }
+    .tbl td .pill { margin-right: 4px; }
+    .scroll-x { overflow-x: auto; margin-top: 4px; }
+    .ans {
+      white-space: pre-wrap; word-break: break-word; max-height: 130px; overflow: auto;
+      font-size: 12px; line-height: 1.7;
+    }
+    .miss {
+      color: #868e96; font-size: 12.5px; line-height: 1.7; padding: 10px 12px;
+      background: #f8f9fa; border-radius: 8px;
+    }
+
+    .kv { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .kv .box {
+      border: 1px solid #dee2e6; background: #f8f9fa; border-radius: 8px;
+      padding: 5px 11px; font-size: 11.5px; color: #868e96; min-width: 92px;
+    }
+    .kv .box b { display: block; font-size: 18px; line-height: 1.4; color: #212529; }
+
+    .job { margin-top: 10px; border: 1px solid #e9ecef; border-radius: 9px; padding: 9px 11px; }
+    .jobhead { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .jobhead b { font-size: 12.5px; }
+    .jobhead .needs { color: #868e96; font-size: 11.5px; }
+    .jobnote { color: #868e96; font-size: 11.5px; margin: 8px 0 2px; line-height: 1.7; }
+    .log {
+      margin-top: 8px; background: #212529; color: #e9ecef; border-radius: 8px;
+      font-family: Consolas, "Courier New", monospace; font-size: 11.5px; line-height: 1.65;
+      padding: 8px 11px; max-height: 220px; overflow: auto; white-space: pre-wrap;
+      word-break: break-word; min-height: 34px;
+    }
+    .log:empty::before { content: "日志窗口:发起一次作业,这里回显尾部"; color: #868e96; }
+
+    .hits { margin-top: 12px; display: grid; gap: 10px; }
+    .hit { border: 1px solid #dee2e6; border-radius: 10px; padding: 9px 12px; font-size: 12.5px; }
+    .hit.top1 { border-color: #4c6ef5; background: #f8f9ff; }
+    .hit .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .hit .q { font-weight: 700; }
+    .hit .a { margin-top: 6px; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+    .hit .meta { margin-top: 6px; color: #868e96; font-size: 11.5px; }
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    #toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 9; }
+    .toast-item {
+      background: #212529; color: #f8f9fa; border-radius: 8px; padding: 9px 14px;
+      font-size: 12.5px; max-width: 420px; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+      white-space: pre-wrap;
+    }
+    .toast-item.err { background: #c92a2a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>知识库录入</h1>
+      <span class="sub">贴一段文档就能进库:切块 → 双写 MySQL 与 Milvus → 现场检索自测</span>
+      <span class="spacer"></span>
+      <button class="btn" id="refreshBtn">刷新</button>
+    </div>
+
+    <div class="gatebar" id="gatebar"></div>
+
+    <div class="tip">
+      两条路:<b>手工录入</b>把正文贴在这一页上,预览什么样就入库什么样;<b>离线建库</b>把
+      data/kb/ 那几份材料交给作业跑,页面按的和终端敲的是同一条命令。
+      两条路共用一份切块实现与同一个双写顺序——先写 MySQL 记「待向量化」,再进 Milvus 回标「已向量化」,
+      中途挂了重跑捡 pending 就能补齐。
+    </div>
+
+    <!-- ① 手工录入 -->
+    <div class="panel" id="manual">
+      <h2>① 手工录入 <span class="pill info">正文贴这里</span></h2>
+      <p class="lede">
+        按标题层级切、超长递归切、块间重叠裁到最近句号、大表格按行拆并复制表头——
+        这几条在下面的预览里逐块标出来(标不出触发的就是没触发)。
+        查重按「问法 + 正文」的指纹,同一份正文重复录入会全跳过。
+      </p>
+      <div class="form">
+        <div class="line">
+          <label for="ctype">内容类型</label>
+          <select id="ctype"></select>
+          <span class="hint" id="ctdesc"></span>
+          <span class="spacer"></span>
+          <button class="btn sm" id="sampleBtn">填一段示例</button>
+          <button class="btn sm" id="clearBtn">清空</button>
+        </div>
+        <textarea id="text" placeholder="贴 Markdown。带 # / ## 标题层级效果最好——政策手册这类没有天然问法的,questions 落章节标题、category 落上级路径。"></textarea>
+        <div class="line">
+          <button class="btn go" id="previewBtn">切块预览(不写库)</button>
+          <button class="btn" id="ingestBtn">录入入库</button>
+          <label style="font-weight:400"><input type="checkbox" id="vecAfter" checked /> 入库后顺手向量化</label>
+          <span class="spacer"></span>
+          <span class="hint" id="ingestHint"></span>
+        </div>
+      </div>
+      <div id="previewBox"></div>
+    </div>
+
+    <!-- ② 建库材料 -->
+    <div class="panel" id="materials">
+      <h2>② 建库材料 <span class="pill info" id="srcPill">—</span></h2>
+      <p class="lede">
+        data/kb/ 下的文档是离线建库的输入。这里的块数就地切出来(dry-run:不写库、不碰
+        Milvus、不调上游),点「看切块」把结果送到上面的预览区逐块看。
+      </p>
+      <div class="scroll-x" id="srcTbl"></div>
+      <div id="srcJobs"></div>
+    </div>
+
+    <!-- ③ 对话挖知识 -->
+    <div class="panel" id="mining">
+      <h2>③ 对话挖知识 <span class="pill info" id="stgPill">—</span></h2>
+      <p class="lede">
+        历史客服对话分批喂给 LLM 抽问答对,先落暂存表,再整体去重入库。
+        三个状态的落差就是去重那一刀:抽出多少、留下多少、丢了多少。
+      </p>
+      <div class="kv" id="stgKv"></div>
+      <div id="stgJobs"></div>
+      <div style="margin-top:12px">
+        <button class="btn sm" id="stgBtn">看暂存表逐条</button>
+      </div>
+      <div id="stgBox"></div>
+    </div>
+
+    <!-- ④ 向量化与双写 -->
+    <div class="panel" id="dualwrite">
+      <h2>④ 向量化与双写 <span class="pill" id="dwPill">—</span></h2>
+      <p class="lede">
+        MySQL 是原文权威源,Milvus 只存向量。<b>幂等靠 vectorize_status</b>:写 MySQL 记 pending,
+        嵌入后按主键 upsert 进 Milvus、回标 done。故意中断建库,再按「向量化待补块」,
+        漏掉的块会被捡起来补齐——这一条不用回终端演。
+      </p>
+      <div class="kv" id="dwKv"></div>
+      <div class="form" style="margin-top:12px">
+        <div class="line">
+          <button class="btn go" id="vecBtn">向量化待补块</button>
+          <span class="hint" id="vecHint"></span>
+        </div>
+      </div>
+      <div id="dwJobs"></div>
+    </div>
+
+    <!-- ⑤ 检索自测 -->
+    <div class="panel" id="search">
+      <h2>⑤ 检索自测 <span class="pill info">换个说法问一句</span></h2>
+      <p class="lede">
+        问句向量化后到 Milvus 按相似度取 Top-K。「邮费是多少」库里一个字都没写过,
+        靠的是与「运费」那块语义相近——词面查表做不到这件事。
+      </p>
+      <div class="form">
+        <div class="line">
+          <input type="text" id="q" placeholder="邮费是多少" />
+          <label for="topk">取 Top-K</label>
+          <input type="number" id="topk" value="5" min="1" max="20" style="width:70px" />
+          <button class="btn go" id="searchBtn">检索</button>
+        </div>
+        <div class="presets" id="presets"></div>
+      </div>
+      <div id="hitBox"></div>
+    </div>
+
+    <!-- ⑥ 最近入库 -->
+    <div class="panel" id="recent">
+      <h2>⑥ 最近入库</h2>
+      <p class="lede">按 id 倒序取最近 12 块,看录进去的东西长什么样、状态到哪一步了。</p>
+      <div class="scroll-x" id="recentTbl"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    /* ============================ 小工具(本页自带的 $ / el,admin.js 不碰这两个名字) ============================ */
+    const $ = (id) => document.getElementById(id);
+
+    function el(tag, cls, text) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text !== undefined && text !== null) n.textContent = text;
+      return n;
+    }
+
+    function pill(cls, text) { return el("span", "pill " + cls, text); }
+
+    function missingBox(text) { return el("div", "miss", text); }
+
+    function mkTable(labels) {
+      const table = el("table", "tbl");
+      const thead = el("thead");
+      const htr = el("tr");
+      for (const x of labels) htr.appendChild(el("th", null, x));
+      thead.appendChild(htr);
+      const tbody = el("tbody");
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      return { table: table, tbody: tbody };
+    }
+
+    function setPill(id, cls, text) {
+      const p = $(id);
+      if (!p) return;
+      p.className = "pill " + cls;
+      p.textContent = text;
+    }
+
+    async function api(url, opt) {
+      const r = await fetch(url, opt);
+      let data = null;
+      try { data = await r.json(); } catch (e) { /* 非 JSON 就走 HTTP 码 */ }
+      if (!r.ok) {
+        const d = data && data.detail;
+        throw new Error(typeof d === "string" ? d : ("HTTP " + r.status));
+      }
+      return data;
+    }
+
+    function toast(msg, isErr) {
+      const t = el("div", "toast-item" + (isErr ? " err" : ""), msg);
+      $("toast").appendChild(t);
+      setTimeout(() => { t.remove(); }, isErr ? 7000 : 3500);
+    }
+
+    const SAMPLE = `# 运费与售后
+
+## 运费说明
+
+满 99 元包邮,未满收 10 元运费。偏远地区运费见下方对照表,不参与包邮。
+
+## 地区运费对照表
+
+| 地区 | 首重(1kg) | 续重(每 kg) | 备注 |
+|---|---|---|---|
+| 江浙沪 | 免费 | 免费 | 满 99 包邮 |
+| 北京 | 8 元 | 2 元 | 满 99 包邮 |
+| 广东 | 8 元 | 2 元 | 满 99 包邮 |
+| 山东 | 8 元 | 3 元 | 满 99 包邮 |
+| 湖北 | 10 元 | 4 元 | — |
+| 四川 | 10 元 | 5 元 | — |
+| 陕西 | 12 元 | 5 元 | — |
+| 云南 | 14 元 | 6 元 | — |
+| 内蒙 | 20 元 | 8 元 | 不参与包邮 |
+| 新疆 | 20 元 | 10 元 | 不参与包邮 |
+| 西藏 | 20 元 | 10 元 | 不参与包邮 |
+| 港澳台 | 40 元 | 20 元 | 需转寄 |
+
+## 售后时效
+
+退货请在签收后 7 天内发起,超期仓库有权拒收。生鲜、定制与已拆封的贴身用品不参与 7 天无理由退货,外观破损请在签收后 24 小时内提供照片,超时只能按质量问题走保修。退款在仓库验收后 3 个工作日内原路退回,银行卡与信用卡到账可能再多 1-2 个工作日,积分与优惠券不随退款返还。换货请先在订单页提交换货申请,再把商品原包装寄回,仓库验收后 48 小时内发出新品;质量问题往返运费由平台承担,非质量问题由买家承担单程运费。运费券、满减券与会员折扣可叠加使用,但同一订单最多用一张运费券,退单后未使用的券原路返还。运费险只覆盖非质量问题的退货运费,单笔订单最高赔付 15 元,超出部分由买家承担,赔付金额随退款一并到账。保修期内非人为损坏免费维修,人为损坏按官方报价收取材料费;寄修前请先在线提交工单,勿直接寄付到付件。客服工单 24 小时内响应,节假日顺延;同一订单重复提交的工单自动合并,以最新一条为准。
+
+## 会员折扣
+
+| 等级 | 年消费 | 折扣 |
+|---|---|---|
+| 喵铜 | 0 元起 | 无 |
+| 喵银 | 1000 元起 | 95 折 |
+| 喵金 | 5000 元起 | 9 折 |
+`;
+
+    const PRESETS = ["邮费是多少", "快递费怎么收", "多久能发货", "东西不想要了能退吗", "怎么开发票"];
+
+    let lastPreview = null;
+
+    /* ============================ ① 切块预览 ============================ */
+    function renderPreview(p) {
+      lastPreview = p;
+      const box = $("previewBox");
+      box.textContent = "";
+      const feats = el("div", "feats");
+      feats.appendChild(pill("info", "来源 " + p.source + " / " + p.content_type));
+      feats.appendChild(pill("info", "共 " + p.total + " 块 / " + p.features.sections + " 节"));
+      // 三个切块特性有没有触发,顶部一眼看齐
+      feats.appendChild(p.features.sections > 1
+        ? pill("pass", "标题切已触发(" + p.features.sections + " 节)")
+        : pill("missing", "标题切未触发(只有 1 节)"));
+      feats.appendChild(p.features.table_split
+        ? pill("pass", "表格按行拆已触发")
+        : pill("missing", "表格按行拆未触发"));
+      feats.appendChild(p.features.overlap
+        ? pill("pass", "句末重叠已触发")
+        : pill("missing", "句末重叠未触发(单节没超 400 字)"));
+      if (p.key_clause) feats.appendChild(pill("info", "关键条款 " + p.key_clause + " 块"));
+      if (p.dedup_known) {
+        feats.appendChild(p.duplicates
+          ? pill("fail", "库里已有 " + p.duplicates + " 块,入库会跳过")
+          : pill("pass", "无重复,可入库"));
+      } else {
+        feats.appendChild(pill("missing", "查重未知(MySQL 读不到)"));
+      }
+      box.appendChild(feats);
+
+      const { table, tbody } = mkTable(["#", "节(section_path)", "问法 questions", "正文 answer", "字数", "标记"]);
+      for (const c of p.chunks) {
+        const tr = el("tr", c.duplicate ? "bad" : "");
+        tr.appendChild(el("td", "num", c.seq));
+        tr.appendChild(el("td", null, c.section_path));
+        tr.appendChild(el("td", null, c.questions));
+        const td = el("td");
+        td.appendChild(el("div", "ans", c.answer));
+        tr.appendChild(td);
+        tr.appendChild(el("td", "num", c.chars));
+        const mk = el("td", "mark");
+        if (c.is_key_clause) mk.appendChild(pill("fail", "关键条款"));
+        if (c.is_table) mk.appendChild(pill("info", "表格块"));
+        if (c.duplicate) mk.appendChild(pill("missing", "重复"));
+        tr.appendChild(mk);
+        tbody.appendChild(tr);
+      }
+      const sc = el("div", "scroll-x");
+      sc.appendChild(table);
+      box.appendChild(sc);
+    }
+
+    async function doPreview(payload) {
+      const box = $("previewBox");
+      box.textContent = "";
+      box.appendChild(missingBox("切块中…"));
+      try {
+        renderPreview(await api("/api/kb/preview", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }));
+      } catch (e) {
+        box.textContent = "";
+        box.appendChild(missingBox("预览失败:" + e.message));
+        toast("预览失败:" + e.message, true);
+      }
+    }
+
+    /* ============================ 作业:按钮 + 轮询 + 日志缓存 ============================
+       作业进终态会回调 load() 重新取数,取数把按钮与日志窗口整个重建。
+       日志尾按作业名缓存在 jobLogCache 里,重建时贴回去——不然最该读的结论正好被刷掉。 */
+    const JOB_LABEL = {
+      idle: ["missing", "没跑过"], starting: ["attention", "启动中"],
+      running: ["attention", "跑着呢"], ok: ["pass", "成功"],
+      failed: ["fail", "失败"], stopped: ["missing", "已停止"],
+    };
+    const jobSpecs = {};      // name -> overview / 轮询给的最新状态
+    const jobLogCache = {};   // name -> 日志尾(发起与轮询时存下)
+    const jobHydrated = {};   // name -> 页面开时已把上次跑的日志尾补回
+    const jobTimers = {};     // name -> 在跑的轮询定时器
+
+    function setJobLog(name, text) {
+      if (text) jobLogCache[name] = text;   // 只记非空:空 tail 不抹掉已经贴过的结论
+      const pre = document.querySelector('[data-joblog="' + name + '"]');
+      if (pre) pre.textContent = jobLogCache[name] || "";
+    }
+
+    function jobRow(j) {
+      const row = el("div", "job");
+      row.dataset.job = j.name;
+      const head = el("div", "jobhead");
+      head.appendChild(el("b", null, j.title || j.name));
+      const st = el("span", "pill");
+      st.dataset.jobpill = j.name;
+      head.appendChild(st);
+      head.appendChild(el("span", "needs", j.needs || ""));
+      head.appendChild(el("span", "spacer"));
+      const start = el("button", "btn go sm", "发起 / 重跑");
+      start.dataset.jobstart = j.name;
+      start.title = j.cmd || "";
+      start.addEventListener("click", () => startJob(j.name));
+      head.appendChild(start);
+      const stop = el("button", "btn sm", "停止");
+      stop.dataset.jobstop = j.name;
+      stop.style.display = "none";
+      stop.addEventListener("click", () => stopJob(j.name));
+      head.appendChild(stop);
+      row.appendChild(head);
+      const pre = el("pre", "log");
+      pre.dataset.joblog = j.name;
+      pre.textContent = jobLogCache[j.name] || "";
+      row.appendChild(pre);
+      return row;
+    }
+
+    function applyJobStatus(name, d) {
+      jobSpecs[name] = Object.assign({}, jobSpecs[name], d);
+      const lab = JOB_LABEL[d.status] || ["missing", d.status];
+      const p = document.querySelector('[data-jobpill="' + name + '"]');
+      if (p) {
+        p.className = "pill " + lab[0];
+        p.textContent = lab[1] + (d.status === "running" && d.pid ? "(pid " + d.pid + ")" : "");
+      }
+      const running = d.status === "running" || d.status === "starting";
+      const start = document.querySelector('[data-jobstart="' + name + '"]');
+      const stop = document.querySelector('[data-jobstop="' + name + '"]');
+      if (start) start.disabled = running;
+      if (stop) stop.style.display = running ? "" : "none";
+      setJobLog(name, d.log);
+    }
+
+    function schedulePoll(name) {
+      if (jobTimers[name]) return;
+      jobTimers[name] = setTimeout(() => pollJob(name), 1500);
+    }
+
+    async function pollJob(name) {
+      delete jobTimers[name];
+      let d;
+      try {
+        d = await api("/api/jobs/" + name);
+      } catch (e) {
+        setJobLog(name, "取作业状态失败:" + e.message);   // 轮询停在这里,不刷屏
+        return;
+      }
+      applyJobStatus(name, d);
+      if (d.status === "running" || d.status === "starting") { schedulePoll(name); return; }
+      const lab = JOB_LABEL[d.status] || ["missing", d.status];
+      toast((d.title || name) + ":" + lab[1] + (d.returncode ? "(退出码 " + d.returncode + ")" : ""));
+      await load();   // 终态重取数:按钮与日志窗口整个重建,日志从 jobLogCache 贴回来
+    }
+
+    async function startJob(name) {
+      const j = jobSpecs[name] || {};
+      if (j.heavy && !window.confirm("「" + (j.title || name) + "」是重活:" + (j.needs || "") + "\n确认发起一次?")) return;
+      const start = document.querySelector('[data-jobstart="' + name + '"]');
+      if (start) start.disabled = true;
+      try {
+        const d = await api("/api/jobs/" + name, { method: "POST" });
+        applyJobStatus(name, d);
+        toast("已发起:" + (d.title || name));
+        if (d.status === "running" || d.status === "starting") schedulePoll(name);
+        else await load();
+      } catch (e) {
+        if (start) start.disabled = false;
+        setJobLog(name, "发起失败:" + e.message);   // 如本机没装 make:如实写进日志窗口,不藏
+        toast("发起失败:" + e.message, true);
+      }
+    }
+
+    async function stopJob(name) {
+      const j = jobSpecs[name] || {};
+      if (!window.confirm("停掉「" + (j.title || name) + "」?正在跑的步骤会被中断。")) return;
+      try {
+        const d = await api("/api/jobs/" + name + "/stop", { method: "POST" });
+        applyJobStatus(name, d);
+        toast((d.title || name) + ":已停止");
+        await load();
+      } catch (e) {
+        toast("停止失败:" + e.message, true);
+      }
+    }
+
+    function renderJobs(d) {
+      for (const j of d.jobs) jobSpecs[j.name] = Object.assign({}, jobSpecs[j.name], j);
+      const put = (id, names, note) => {
+        const host = $(id);
+        host.textContent = "";
+        host.appendChild(el("div", "jobnote", note));
+        for (const n of names) if (jobSpecs[n]) host.appendChild(jobRow(jobSpecs[n]));
+      };
+      put("srcJobs", ["kb-preview", "kb-build"],
+        "kb-preview 只读:就地切 data/kb,不写库、不碰 Milvus;kb-build 写 MySQL 记 pending,向量化交给 kb-vectorize");
+      put("stgJobs", ["seed-conv", "kb-mine"],
+        "seed-conv 灌历史会话(要 docker mysql 容器);kb-mine 抽 QA 对(要调 LLM,分钟级,发起前二次确认)");
+      put("dwJobs", ["kb-vectorize", "kb-reset"],
+        "kb-vectorize 幂等补齐 pending;kb-reset 会清空知识库两表并 drop 集合,发起前二次确认");
+      for (const j of d.jobs) {
+        applyJobStatus(j.name, j);
+        if (!jobTimers[j.name] && (j.status === "running" || j.status === "starting")) schedulePoll(j.name);
+        // 页面刚开:上次跑过的日志尾补回一次(有 log_mtime 才补,免得空打六个请求)
+        if (!jobHydrated[j.name] && j.log_mtime) {
+          jobHydrated[j.name] = true;
+          api("/api/jobs/" + j.name).then((x) => setJobLog(j.name, x.log)).catch(() => {});
+        }
+      }
+    }
+
+    /* ============================ 各块渲染 ============================ */
+    function renderGatebar(d) {
+      const bar = $("gatebar");
+      bar.textContent = "";
+      const add = (label, value, cls) => {
+        const s = el("div", "stat" + (cls ? " " + cls : ""));
+        s.appendChild(el("b", null, value === null || value === undefined ? "—" : value));
+        s.appendChild(document.createTextNode(label));
+        bar.appendChild(s);
+      };
+      const c = d.chunks;
+      add("知识块(MySQL)", c.total);
+      add("待向量化", c.pending, c.pending === null ? "" : (c.pending ? "fail" : "pass"));
+      add("Milvus 条数", d.milvus.online ? d.milvus.count : "离线", d.milvus.online ? "" : "fail");
+      add("关键条款", c.key_clause);
+      const verdict = d.consistent === null ? "读不到" : (d.consistent ? "一致" : "对不上");
+      add("双写", verdict, d.consistent === null ? "" : (d.consistent ? "pass" : "fail"));
+      if (d.db_error) {
+        const s = el("div", "stat fail wide");
+        s.appendChild(el("b", null, "MySQL"));
+        s.appendChild(document.createTextNode(d.db_error));
+        bar.appendChild(s);
+      }
+    }
+
+    function renderSources(d) {
+      const { table, tbody } = mkTable(["文件", "类型", "字符", "行", "切出块数", "关键条款", "切块特性", "操作"]);
+      let total = 0;
+      for (const s of d.sources) {
+        const tr = el("tr", s.present ? "" : "bad");
+        tr.appendChild(el("td", null, s.path));
+        tr.appendChild(el("td", null, s.content_type));
+        if (!s.present) {
+          const td = el("td", null, "文件不在");
+          td.colSpan = 6;
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+          continue;
+        }
+        total += s.chunks;
+        tr.appendChild(el("td", "num", s.chars));
+        tr.appendChild(el("td", "num", s.lines));
+        tr.appendChild(el("td", "num", s.chunks));
+        tr.appendChild(el("td", "num", s.key_clause));
+        const ft = el("td", "mark");
+        if (s.features.table_split) ft.appendChild(pill("info", "拆表"));
+        if (s.features.overlap) ft.appendChild(pill("info", "重叠"));
+        ft.appendChild(pill("missing", s.features.sections + " 节"));
+        tr.appendChild(ft);
+        const act = el("td");
+        const btn = el("button", "btn sm", "看切块");
+        btn.addEventListener("click", () => {
+          doPreview({ file: s.file });
+          $("previewBox").scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        act.appendChild(btn);
+        tr.appendChild(act);
+        tbody.appendChild(tr);
+      }
+      const host = $("srcTbl");
+      host.textContent = "";
+      host.appendChild(table);
+      setPill("srcPill", "info", d.sources.length + " 份材料 / 共切 " + total + " 块");
+    }
+
+    function renderStaging(d) {
+      const kv = $("stgKv");
+      kv.textContent = "";
+      const s = d.staging;
+      if (!s) {
+        kv.appendChild(missingBox("MySQL 读不到,暂存表这几个数看不了;材料清单与作业按钮不受影响"));
+        setPill("stgPill", "missing", "读不到");
+        return;
+      }
+      const add = (label, value) => {
+        const b = el("div", "box");
+        b.appendChild(el("b", null, value === null || value === undefined ? "—" : value));
+        b.appendChild(document.createTextNode(label));
+        kv.appendChild(b);
+      };
+      add("已抽出待去重", s.counts.extracted);
+      add("去重保留", s.counts.kept);
+      add("去重丢弃", s.counts.discarded);
+      add("批次数", s.batches);
+      setPill("stgPill", "info", s.total ? ("累计 " + s.total + " 条") : "还没挖过");
+    }
+
+    async function loadStaging() {
+      const box = $("stgBox");
+      box.textContent = "";
+      box.appendChild(missingBox("取数中…"));
+      try {
+        const d = await api("/api/kb/staging");
+        box.textContent = "";
+        const LB = { extracted: "已抽出待去重", kept: "去重保留", discarded: "去重丢弃" };
+        for (const st of ["extracted", "kept", "discarded"]) {
+          const rows = d.rows[st] || [];
+          if (!rows.length) continue;
+          box.appendChild(el("h3", "subh", LB[st] + "(" + rows.length + " 条)"));
+          const { table, tbody } = mkTable(["id", "批次", "来源", "问法", "答案(截断)"]);
+          for (const r of rows) {
+            const tr = el("tr");
+            tr.appendChild(el("td", "num", r.id));
+            tr.appendChild(el("td", "num", r.batch_no));
+            tr.appendChild(el("td", null, r.source_ref || "—"));
+            tr.appendChild(el("td", null, r.question));
+            const td = el("td");
+            td.appendChild(el("div", "ans", r.answer));
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+          }
+          const sc = el("div", "scroll-x");
+          sc.appendChild(table);
+          box.appendChild(sc);
+        }
+        if (!box.childNodes.length) box.appendChild(missingBox("暂存表是空的:先跑一次对话挖知识(kb-mine)"));
+      } catch (e) {
+        box.textContent = "";
+        box.appendChild(missingBox("取数失败:" + e.message));
+      }
+    }
+
+    function renderDualwrite(d) {
+      const kv = $("dwKv");
+      kv.textContent = "";
+      const add = (label, value) => {
+        const b = el("div", "box");
+        b.appendChild(el("b", null, value === null || value === undefined ? "—" : value));
+        b.appendChild(document.createTextNode(label));
+        kv.appendChild(b);
+      };
+      add("pending 待补", d.chunks.pending);
+      add("done 已向量化", d.chunks.done);
+      add("Milvus 条数", d.milvus.online ? d.milvus.count : "离线");
+      add("集合", d.milvus.collection || "knowledge");
+      if (d.consistent === null) setPill("dwPill", "missing", "读不到,不下结论");
+      else if (d.consistent) setPill("dwPill", "pass", "两边对得上");
+      else setPill("dwPill", "fail", "对不上,按下面补齐");
+      $("vecHint").textContent = d.milvus.online
+        ? "in-process 直接跑,与 make kb-vectorize 同一个函数"
+        : ("Milvus 离线:" + (d.milvus.detail || "—"));
+    }
+
+    function renderRecent(d) {
+      const { table, tbody } = mkTable(["id", "类型", "节", "问法", "正文(截断)", "状态"]);
+      if (!d.recent.length) {
+        const tr = el("tr");
+        const td = el("td", null, d.db_error
+          ? ("MySQL 读不到:" + d.db_error)
+          : "库里还没有块。上面贴一段录进来,或者跑一次离线建库。");
+        td.colSpan = 6;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+      for (const r of d.recent) {
+        const tr = el("tr", r.status === "pending" ? "bad" : "");
+        tr.appendChild(el("td", "num", r.id));
+        tr.appendChild(el("td", null, r.content_type || "—"));
+        tr.appendChild(el("td", null, r.section_path || "—"));
+        tr.appendChild(el("td", null, r.questions));
+        const td = el("td");
+        td.appendChild(el("div", "ans", r.answer));
+        tr.appendChild(td);
+        const st = el("td", "mark");
+        st.appendChild(pill(r.status === "done" ? "pass" : "fail", r.status === "done" ? "已向量化" : "待向量化"));
+        if (r.is_key_clause) st.appendChild(pill("fail", "关键条款"));
+        tr.appendChild(st);
+        tbody.appendChild(tr);
+      }
+      const host = $("recentTbl");
+      host.textContent = "";
+      host.appendChild(table);
+    }
+
+    /* ============================ ① 录入 / ④ 补向量 / ⑤ 检索 ============================ */
+    function syncCtDesc() {
+      const o = $("ctype").selectedOptions[0];
+      $("ctdesc").textContent = o ? (o.dataset.desc || "") : "";
+    }
+
+    async function ingest() {
+      const text = $("text").value.trim();
+      if (!text) { toast("先贴一段正文", true); return; }
+      const n = lastPreview && lastPreview.source === "手工录入" ? lastPreview.total : null;
+      if (!window.confirm("确认把这段正文录入知识库?"
+        + (n ? "\n预览切出 " + n + " 块" + (lastPreview.duplicates ? ",其中 " + lastPreview.duplicates + " 块库里已有会跳过" : "") : "")
+        + ($("vecAfter").checked ? "\n入库后立刻向量化(要调嵌入上游)" : "\n只入库记 pending,稍后再补向量"))) return;
+      const btn = $("ingestBtn");
+      btn.disabled = true;
+      const hint = $("ingestHint");
+      hint.className = "hint";
+      hint.textContent = "录入中…";
+      try {
+        const d = await api("/api/kb/ingest", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, content_type: $("ctype").value, vectorize: $("vecAfter").checked }),
+        });
+        hint.textContent = "";
+        toast("入库 " + d.inserted + " 块"
+          + (d.skipped ? ",跳过重复 " + d.skipped + " 块" : "")
+          + (d.vectorized !== null && d.vectorized !== undefined ? ",向量化 " + d.vectorized + " 块" : "(只记 pending,未向量化)"));
+        await load();
+        if (d.inserted) doPreview({ text: text, content_type: $("ctype").value });
+      } catch (e) {
+        // 502 的语义是「已入库 N 块(pending),向量化失败,补跑即可」——留在页面上,别让 toast 一闪而过
+        hint.className = "hint err";
+        hint.textContent = "录入失败:" + e.message;
+        toast("录入失败:" + e.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function vectorizePending() {
+      const btn = $("vecBtn");
+      btn.disabled = true;
+      $("vecHint").textContent = "向量化中…";
+      try {
+        const d = await api("/api/kb/vectorize", { method: "POST" });
+        toast("本次向量化 " + d.vectorized + " 块,剩余 pending " + d.chunk_stats.pending);
+        await load();
+      } catch (e) {
+        $("vecHint").textContent = "向量化失败:" + e.message;
+        toast("向量化失败:" + e.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function doSearch() {
+      const q = $("q").value.trim() || $("q").placeholder;
+      const box = $("hitBox");
+      box.textContent = "";
+      box.appendChild(missingBox("检索中…"));
+      try {
+        const d = await api("/api/kb/search", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: q, top_k: Number($("topk").value) || 5 }),
+        });
+        const head = el("div", "feats");
+        head.appendChild(pill("info", "问句 " + d.q));
+        head.appendChild(pill(d.hits.length ? "pass" : "fail", "召回 " + d.hits.length + " 块"));
+        box.textContent = "";
+        box.appendChild(head);
+        if (!d.hits.length) {
+          box.appendChild(missingBox("一条都没召回:库里可能还没有货,或者 pending 还没向量化"));
+          return;
+        }
+        const list = el("div", "hits");
+        d.hits.forEach((h, i) => {
+          const card = el("div", "hit" + (i === 0 ? " top1" : ""));
+          const top = el("div", "top");
+          top.appendChild(pill(i === 0 ? "pass" : "info", "#" + (i + 1)));
+          top.appendChild(el("span", "q", h.question));
+          top.appendChild(el("span", "spacer"));
+          if (h.score !== null && h.score !== undefined) {
+            top.appendChild(pill("info", "score " + Number(h.score).toFixed(4)));
+          }
+          card.appendChild(top);
+          card.appendChild(el("div", "a", h.answer));
+          card.appendChild(el("div", "meta", "id " + (h.id === null || h.id === undefined ? "—" : h.id)));
+          list.appendChild(card);
+        });
+        box.appendChild(list);
+      } catch (e) {
+        box.textContent = "";
+        box.appendChild(missingBox("检索失败:" + e.message));
+        toast("检索失败:" + e.message, true);
+      }
+    }
+
+    /* ============================ 取数 ============================ */
+    function fillContentTypes(types) {
+      const sel = $("ctype");
+      if (sel.options.length) return;
+      for (const c of types) {
+        const o = document.createElement("option");
+        o.value = c.key;
+        o.textContent = c.key;
+        o.dataset.desc = c.desc;
+        sel.appendChild(o);
+      }
+      syncCtDesc();
+    }
+
+    async function load() {
+      let d;
+      try {
+        d = await api("/api/kb/overview");
+      } catch (e) {
+        const bar = $("gatebar");
+        bar.textContent = "";
+        bar.appendChild(missingBox("取数失败:" + e.message));
+        toast("取数失败:" + e.message, true);
+        return;
+      }
+      renderGatebar(d);
+      fillContentTypes(d.content_types);
+      renderSources(d);
+      renderStaging(d);
+      renderDualwrite(d);
+      renderRecent(d);
+      renderJobs(d);
+    }
+
+    /* ============================ 绑定 ============================ */
+    mountAdminNav("/kb");
+    $("refreshBtn").addEventListener("click", load);
+    $("ctype").addEventListener("change", syncCtDesc);
+    $("sampleBtn").addEventListener("click", () => { $("text").value = SAMPLE; });
+    $("clearBtn").addEventListener("click", () => { $("text").value = ""; $("previewBox").textContent = ""; });
+    $("previewBtn").addEventListener("click", () =>
+      doPreview({ text: $("text").value, content_type: $("ctype").value }));
+    $("ingestBtn").addEventListener("click", ingest);
+    $("vecBtn").addEventListener("click", vectorizePending);
+    $("stgBtn").addEventListener("click", loadStaging);
+    $("searchBtn").addEventListener("click", doSearch);
+    $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+    for (const pq of PRESETS) {
+      const b = el("button", "btn sm", pq);
+      b.addEventListener("click", () => { $("q").value = pq; doSearch(); });
+      $("presets").appendChild(b);
+    }
+    load();
+  </script>
+</body>
+</html>
